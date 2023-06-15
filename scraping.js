@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 async function readFiles(csvFilePath) {
     try {
@@ -25,7 +26,40 @@ async function dataRead(csvFilePath) {
     return result 
 }
 
+async function toDict(cabang, alamat, url){
+    const header = ['Cabang','Alamat','Url']
+    const cabangs = cabang 
+    const alamats = alamat
+    const urls = url 
+    const dictionary = []
+    for (let i = 0; i < cabang.length; i++){
+        const value = {
+            [header[0]] : cabangs[i],
+            [header[1]] : alamats[i],
+            [header[2]] : urls[i] 
+        };
+        dictionary.push(value)
+    }
+    return dictionary
+}
 
+async function toCSV(dictionary){
+    const data = dictionary
+    const csvWriter = createCsvWriter({
+        path: 'output.csv', // Specify the output file path
+        header: [
+          { id: 'Cabang', title: 'Cabang' },
+          { id: 'Alamat', title: 'Alamat' },
+          { id: 'Url', title: 'Url' }
+        ]
+      });
+      
+      // Write the data to the CSV file
+    csvWriter
+        .writeRecords(data)
+        .then(() => console.log('CSV file created successfully.'))
+        .catch(error => console.error('Error writing CSV:', error));
+}
 
 (async () => {
     const browser = await puppeteer.launch({headless : false});
@@ -39,25 +73,33 @@ async function dataRead(csvFilePath) {
     const searchQuery = firstLine
     await page.goto('https://www.google.com/maps/?q=' + searchQuery);
 
-    const element_cabang = await page.$$('.fontHeadlineLarge');
-    
+    const cabang = []
+    const alamat = []
+    const url = []
+
     await page.waitForNavigation();
+    const element_cabang = await page.$$('.fontHeadlineLarge');
+    const cabangs = await element_cabang[0].evaluate(el => el.textContent);
+    cabang.push(cabangs)
 
-    for (elements of element_cabang) {
-        const cabang = await elements.evaluate(el => el.textContent);
-        console.log(cabang);
-    }
-
-    const alamat = await page.evaluate(() => {
+    const alamats = await page.evaluate(() => {
         const alamat = document.querySelectorAll('.fontBodyMedium')[2];
         return alamat ? alamat.textContent : '';
     });
-    console.log(alamat)
+    alamat.push(alamats)
 
     const currentURL = await page.evaluate(() => window.location.href);
-    console.log('URL:', currentURL);
+    url.push(currentURL)
 
-    ///}
-    //const cabang = await cabang_raw.evaluate(span => span.textContent)
+    //console.log(cabang)
+    //console.log(alamat)
+    //console.log(url)
+
+    dictionary = await toDict(cabang, alamat, url)
+
+    console.log(dictionary)
+
+    await toCSV(dictionary)
+
     await browser.close();
 })();
