@@ -61,47 +61,57 @@ async function toCSV(dictionary){
         .catch(error => console.error('Error writing CSV:', error));
 }
 
+async function toDict(Link, alamat){
+    const header = ['Link','Alamat']
+    const Links = Link
+    const alamats = alamat
+    const dictionary = []
+    for (let i = 0; i < Links.length; i++){
+        const value = {
+            [header[0]] : Links[i],
+            [header[1]] : alamats[i],
+        };
+        dictionary.push(value)
+    }
+    return dictionary
+}
+
 (async () => {
     const browser = await puppeteer.launch({headless : false});
     const page = await browser.newPage();
 
     const csvFilePath = 'Alamat Raw Bank Bca.csv'
-
     const result = await dataRead(csvFilePath)
-    const firstLine = result[0]
 
-    const searchQuery = firstLine
-    await page.goto('https://www.google.com/maps/?q=' + searchQuery);
-    await page.evaluate(() => {
-        document.body.style.zoom = '200%'; // Adjust the zoom level as needed
-      });
-    const cabang = []
     const alamat = []
-    const url = []
+    const Link = []
 
-    await page.waitForNavigation();
-    const element_cabang = await page.$$('.fontHeadlineLarge');
-    const cabangs = await element_cabang[0].evaluate(el => el.textContent);
-    cabang.push(cabangs)
+    for (let i = 0; i < 100; i++){
+        const searchQuery = result[i];
+        Link.push(searchQuery);
+        await page.goto('https://www.google.com/maps/?q=' + searchQuery, { timeout: 60000 });
+        await page.evaluate(() => {
+            document.body.style.zoom = '150%'; // Adjust the zoom level as needed
+        });
+        
+        await page.waitForNavigation();
+        
+        //const cabang_raw = await cabang(page);
+        //Cabang.push(cabang_raw);
 
-    const alamats = await page.evaluate(() => {
-        const alamat = document.querySelectorAll('.fontBodyMedium')[2];
-        return alamat ? alamat.textContent : '';
-    });
-    alamat.push(alamats)
+        //const element_cabang = await page.$$('.fontHeadlineLarge');
+        //const cabangs = await element_cabang[0].evaluate(el => el.textContent);
 
-    const currentURL = await page.evaluate(() => window.location.href);
-    url.push(currentURL)
+        const alamats = await page.evaluate(() => {
+            const alamat = document.querySelectorAll('.fontBodyMedium')[2];
+            return alamat ? alamat.textContent : '';
+        });
 
-    //console.log(cabang)
-    //console.log(alamat)
-    //console.log(url)
+        alamat.push(alamats)
+        
+    }
 
-    dictionary = await toDict(cabang, alamat, url)
-
+    const dictionary = await toDict(Link, alamat);
     console.log(dictionary)
-
-    await toCSV(dictionary)
-
     await browser.close();
 })();
